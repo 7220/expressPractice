@@ -7,10 +7,10 @@ const template = require("./lib/template.js");
 const bodyParser = require("body-parser");
 const compression = require("compression");
 
-app.use(express.static('public'))
+app.use(express.static("public"));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(compression());
-app.get('*', (request, response, next) => {
+app.get("*", (request, response, next) => {
   fs.readdir("./data", function (error, filelist) {
     request.list = filelist;
     next();
@@ -24,44 +24,21 @@ app.get("/", (request, response) => {
   var html = template.HTML(
     title,
     list,
-    `<h2>${title}</h2>${description} <img src="./images/hello.jpg" style="width: 300px">`,
-    `<a href="/create">create</a>`
+    `<h2>${title}</h2>${description} 
+    <img src="./images/hello.jpg" style="width: 300px; display: block;">`,
+    `<a href="/topic/create">create</a>`
   );
   response.send(html);
 });
 
-app.get("/page/:pageId", (request, response) => {
-  var filteredId = path.parse(request.params.pageId).base;
-  fs.readFile(`data/${filteredId}`, "utf8", function (err, description) {
-    var title = request.params.pageId;
-    var sanitizedTitle = sanitizeHtml(title);
-    var sanitizedDescription = sanitizeHtml(description, {
-      allowedTags: ["h1"],
-    });
-    var list = template.list(request.list);
-    var html = template.HTML(
-      sanitizedTitle,
-      list,
-      `<h2>${sanitizedTitle}</h2>${sanitizedDescription}`,
-      ` <a href="/create">create</a>
-          <a href="/update/${sanitizedTitle}">update</a>
-          <form action="/delete_process" method="post">
-            <input type="hidden" name="id" value="${sanitizedTitle}">
-            <input type="submit" value="delete">
-          </form>`
-    );
-    response.send(html);
-  });
-});
-
-app.get("/create", (request, response) => {
+app.get("/topic/create", (request, response) => {
   var title = "WEB - create";
   var list = template.list(request.list);
   var html = template.HTML(
     title,
     list,
     `
-      <form action="/create_process" method="post">
+      <form action="/topic/create_process" method="post">
         <p><input type="text" name="title" placeholder="title"></p>
         <p>
           <textarea name="description" placeholder="description"></textarea>
@@ -76,7 +53,7 @@ app.get("/create", (request, response) => {
   response.send(html);
 });
 
-app.post("/create_process", (request, response) => {
+app.post("/topic/create_process", (request, response) => {
   var post = request.body;
   var title = post.title;
   var description = post.description;
@@ -86,12 +63,40 @@ app.post("/create_process", (request, response) => {
   });
 });
 
+app.get("/topic/:pageId", (request, response, next) => {
+  var filteredId = path.parse(request.params.pageId).base;
+  fs.readFile(`data/${filteredId}`, "utf8", function (err, description) {
+    if (err) {
+      next(err)
+    } else {
+      var title = request.params.pageId;
+      var sanitizedTitle = sanitizeHtml(title);
+      var sanitizedDescription = sanitizeHtml(description, {
+        allowedTags: ["h1"],
+      });
+      var list = template.list(request.list);
+      var html = template.HTML(
+        sanitizedTitle,
+        list,
+        `<h2>${sanitizedTitle}</h2>${sanitizedDescription}`,
+        ` <a href="/topic/create">create</a>
+          <a href="/update/${sanitizedTitle}">update</a>
+          <form action="/delete_process" method="post">
+            <input type="hidden" name="id" value="${sanitizedTitle}">
+            <input type="submit" value="delete">
+          </form>`
+      );
+      response.send(html);
+    }
+  });
+});
+
 app.get("/update/:pageId", (request, response) => {
   var filteredId = path.parse(request.params.pageId).base;
   fs.readFile(`data/${filteredId}`, "utf8", function (err, description) {
     var title = request.params.pageId;
     var sanitizedTitle = sanitizeHtml(title);
-    var sanitizedDescription = sanitizeHtml(description)
+    var sanitizedDescription = sanitizeHtml(description);
     var list = template.list(request.list);
     var html = template.HTML(
       title,
@@ -134,6 +139,16 @@ app.post("/delete_process", (request, response) => {
     response.redirect("/");
   });
 });
+
+
+app.use((req, res, next) => {
+  res.status(404).send('404')
+})
+
+app.use((err, req, res, next) => {
+  console.error(err.stack)
+  res.status(500).send('500')
+})
 
 app.listen(3000, () => console.log("port 3000!"));
 
